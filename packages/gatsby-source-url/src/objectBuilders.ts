@@ -28,6 +28,57 @@ const parseAspectRatioFloatFromString = R.pipe<
 
 const DEFAULT_LQIP_PARAMS: ImgixUrlParams = { w: 20, blur: 15, q: 20 };
 
+const DEFAULT_MAX_WIDTH = 8192;
+
+function calculateFluidDimensions({
+  manualMaxWidth,
+  manualMaxHeight,
+  aspectRatio: manualAspectRatio,
+  sourceWidth,
+  sourceHeight,
+}: {
+  maxWidth?: number;
+  maxHeight?: number;
+  aspectRatio?: number;
+  sourceWidth: number;
+  sourceHeight: number;
+}): {
+  // Represents the "desired" max width of the image, but could stretch the image
+  maxWidth: number;
+  // Represents the "desired" max height of the image
+  // maxHeight: number;
+  aspectRatio: number;
+  // Returned by the GraphQL query if needed to be consumed by gatsby-image. Represents the maximum width of the image without stretching (respecting the maxWidth param)
+  presentationWidth: number;
+  // Same as presentationHeight for height
+  presentationHeight: number;
+} {
+  const aspectRatio: number = (() => {
+    if (manualAspectRatio) {
+      return manualAspectRatio;
+    }
+    if (manualMaxWidth != null && manualMaxHeight != null) {
+      return manualMaxWidth / manualMaxHeight;
+    }
+    return sourceWidth / sourceHeight;
+  })();
+
+  // const 
+
+
+
+  // const constrainingWidth = maxWidth ?? sourceWidth;
+
+  return {
+    maxWidth: constrainingWidth,
+    aspectRatio,
+    presentationWidth: constrainingWidth,
+    presentationHeight: constrainingWidth / aspectRatio,
+  };
+}
+
+export { calculateFluidDimensions as __calculateFluidDimensions };
+
 export const buildFluidObject = ({
   client,
   url,
