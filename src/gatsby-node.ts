@@ -14,4 +14,8 @@ export const onPreInit: GatsbyNode['onPreInit'] = (_: unknown) => {
 };
 
 // export const createResolvers = () => {};
-export * from './modules/gatsby-source-url/gatsby-node';
+export {
+  createResolvers,
+  onPreExtractQueries,
+} from './modules/gatsby-source-url/gatsby-node';
+export { onCreateNode } from './modules/gatsby-transform-node/gatsby-node';
