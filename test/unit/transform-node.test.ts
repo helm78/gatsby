@@ -1,9 +1,11 @@
-import { Node } from "gatsby";
+import { CreateNodeArgs, Node, PluginOptions } from "gatsby";
+import R from "ramda";
 import { onCreateNode } from "../../src/gatsby-node";
+import { IGatsbySourceUrlOptions } from "../../src/modules/gatsby-source-url/publicTypes";
 
 describe('transform-node', () => {
   test('should add a correct imgix field to a specified node', () => {
-    const result = testOnCreateNode({
+    const result = resolveNodeField({
       appConfig: {
         fields: [
           {
@@ -12,7 +14,7 @@ describe('transform-node', () => {
           },
         ],
       },
-      nodeTypName: 'TestNode',
+      nodeTypeName: 'TestNode',
       nodeData: { imageUrl: 'https://assets.imgix.net/amsterdam.jpg' },
       field: 'imgixImage',
       subField: 'url',
@@ -69,35 +71,48 @@ const resolveNodeField = async ({
 
 type FieldParams = Record<string, any>;
 
-jest.mock
+const createMockReporter = () => ({
+  panic: () => { }
+})
+
+const defaultAppConfig = {
+  domain: 'assets.imgix.net',
+  plugins: [],
+} as const;
+// jest.mock
 async function resolveNodeFieldInternal({
-  appConfig,
+  appConfig: _appConfig,
   nodeTypeName,
   nodeData,
   field,
   subField,
   subFieldParams = {},
 }: {
-  appConfig?: Parameters<typeof createRootResolversMap>[0];
+  appConfig?: Partial<PluginOptions<IGatsbySourceUrlOptions>>;
   nodeTypeName: string;
   nodeData: Record<any, any>;
   field: string,
   subField: 'url' | 'fluid' | 'fixed';
   subFieldParams?: Object;
-}) {
+  }) {
+  
+  const appConfig = R.mergeDeepRight(defaultAppConfig, _appConfig ?? {})
 
   const mockCreateNodeFieldFunction = jest.fn();
 
   onCreateNode && onCreateNode(
     { 
-      node,
-      actions,
-      reporter
-    },
-    { createNodeField: mockCreateNodeFieldFunction }
+      node: nodeData  as Node,
+      actions : { createNodeField: mockCreateNodeFieldFunction },
+      reporter: createMockReporter()
+    } as any as CreateNodeArgs,
+    appConfig
+    
   )
 
-  const nodeField: { node: Node, name: string, value: string | string[] | undefined }= mockCreateNodeFieldFunction.mock.calls[0][0]
+  const nodeField: { node: Node, name: string, value: string | string[] | undefined } = mockCreateNodeFieldFunction.mock.calls[0][0]
+
+  
 
 
 
