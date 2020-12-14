@@ -2,6 +2,8 @@ import { CreateNodeArgs, Node, PluginOptions } from "gatsby";
 import R from "ramda";
 import { onCreateNode } from "../../src/gatsby-node";
 import { IGatsbySourceUrlOptions } from "../../src/modules/gatsby-source-url/publicTypes";
+import { createSchemaCustomization } from "../../src/modules/gatsby-transform-node/gatsby-node";
+import { createMockReporter } from "../common/mocks";
 
 describe('transform-node', () => {
   test('should add a correct imgix field to a specified node', () => {
@@ -71,9 +73,6 @@ const resolveNodeField = async ({
 
 type FieldParams = Record<string, any>;
 
-const createMockReporter = () => ({
-  panic: () => { }
-})
 
 const defaultAppConfig = {
   domain: 'assets.imgix.net',
@@ -98,19 +97,37 @@ async function resolveNodeFieldInternal({
   
   const appConfig = R.mergeDeepRight(defaultAppConfig, _appConfig ?? {})
 
-  const mockCreateNodeFieldFunction = jest.fn();
+  const mockCreateNodeField = jest.fn();
 
   onCreateNode && onCreateNode(
     { 
       node: nodeData  as Node,
-      actions : { createNodeField: mockCreateNodeFieldFunction },
+      actions : { createNodeField: mockCreateNodeField },
       reporter: createMockReporter()
     } as any as CreateNodeArgs,
-    appConfig
+    appConfig,
     
   )
 
-  const nodeField: { node: Node, name: string, value: string | string[] | undefined } = mockCreateNodeFieldFunction.mock.calls[0][0]
+  const nodeField: { node: Node, name: string, value: string | string[] | undefined } = mockCreateNodeField.mock.calls[0][0]
+
+  const mockCreateTypes = jest.fn();
+
+  createSchemaCustomization && createSchemaCustomization(
+    { 
+      actions: { createTypes: mockCreateTypes } as any,
+      cache: { get: jest.fn(), set: jest.fn(),},
+      schema: { buildObjectType: jest.fn() }  as any,
+      reporter: createMockReporter()
+    } as any,
+    appConfig
+  )
+
+  const fieldTypesCall = mockCreateTypes.mock.calls.filter(call => Array.isArray(call[0]) && call[0][0]?.config?.name === `${nodeTypeName}Fields`)[0]
+
+  
+
+
 
   
 

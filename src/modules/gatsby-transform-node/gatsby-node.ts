@@ -1,4 +1,4 @@
-import { GatsbyNode, PluginOptions } from 'gatsby';
+import { CreateSchemaCustomizationArgs, GatsbyNode, PluginOptions } from 'gatsby';
 import { invariant } from '../../common/utils';
 import { IGatsbySourceUrlOptions } from '../gatsby-source-url/publicTypes';
 
@@ -65,4 +65,86 @@ export const onCreateNode: GatsbyNode['onCreateNode'] = async (
 
     createNodeField({ node, name: field.fieldName, value: fieldValue });
   }
+};
+
+export const createSchemaCustomization: GatsbyNode['createSchemaCustomization'] = async (
+  gatsbyContext: CreateSchemaCustomizationArgs,
+  pluginOptions: PluginOptions<IGatsbySourceUrlOptions>,,
+) => {
+  const { actions, cache, schema, reporter } = gatsbyContext;
+  const { createTypes } = actions;
+
+  const {
+    secureUrlToken,
+    sourceType,
+    namespace,
+    defaultImgixParams,
+    defaultPlaceholderImgixParams,
+    fields = [],
+  } = pluginOptions;
+  invariant(
+    Array.isArray(fields),
+    'fields must be an array of field options',
+    reporter,
+  );
+  invariant(
+    sourceType !== ImgixSourceType.WebProxy || Boolean(secureUrlToken),
+    'a secure URL token must be provided if sourceType is webProxy',
+    reporter,
+  );
+
+  const ImgixFixedType = createImgixFixedType({
+    name: ns(namespace, 'ImgixFixed'),
+    cache,
+  });
+
+  const ImgixFluidType = createImgixFluidType({
+    name: ns(namespace, 'ImgixFluid'),
+    cache,
+  });
+
+  const ImgixImageType = schema.buildObjectType({
+    name: ns(namespace, 'ImgixImage'),
+    fields: {
+      url: createImgixUrlSchemaFieldConfig({
+        resolveUrl: (url: string) => url,
+        secureUrlToken,
+        defaultImgixParams,
+      }),
+      fixed: createImgixFixedSchemaFieldConfig({
+        type: ImgixFixedType,
+        resolveUrl: (url: string) => url,
+        secureUrlToken,
+        defaultImgixParams,
+        defaultPlaceholderImgixParams,
+        cache,
+      }),
+      fluid: createImgixFluidSchemaFieldConfig({
+        type: ImgixFluidType,
+        resolveUrl: (url: string) => url,
+        secureUrlToken: secureUrlToken,
+        defaultImgixParams,
+        defaultPlaceholderImgixParams,
+        cache,
+      }),
+    },
+  });
+
+  const fieldTypes = fields.map((fieldOptions) =>
+    schema.buildObjectType({
+      name: `${fieldOptions.nodeType}Fields`,
+      fields: {
+        [fieldOptions.fieldName]: {
+          type:
+            'getUrls' in fieldOptions
+              ? `[${ImgixImageType.config.name}]`
+              : ImgixImageType.config.name,
+        },
+      },
+    }),
+  );
+
+  // createTypes([ImgixFixedType, ImgixFluidType]);
+  // createTypes(ImgixImageType);
+  createTypes(fieldTypes);
 };
